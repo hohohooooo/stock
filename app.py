@@ -153,7 +153,6 @@ def top20_intraday(df):
 
 
 
-
 test = StockTradeAnalyzer()
 
 # --- Streamlit 主程式 ---
@@ -167,6 +166,10 @@ st.markdown("""
     div[data-testid="stTable"] div {
         font-size: 12px;
     }
+    div[data-baseweb="select"] {
+        max-height: 300px;
+        overflow-y: auto;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -177,86 +180,137 @@ st.title("買賣日報表彙總分析")
 uploaded_file = st.file_uploader("上傳CSV檔案", type=["csv"])
 
 if uploaded_file is not None:
-    df_raw = test.csv2df(uploaded_file)
-    df2 = test.df2clean(df_raw)
-    df = test.df2calculate(df2)
+    df2 = test.csv2df(uploaded_file)
+    df_raw = test.df2clean(df2)
+    df = test.df2calculate(df_raw)
     
     if df is not None:
         st.success("檔案已整理完成！")
 
-        # 🔵【新增】篩選功能
-        st.subheader("完整資料篩選區")
-        
-        # 🔵 價格範圍選擇 + 手動輸入
-        min_price = float(df['平均買進價格'].min())
-        max_price = float(df['平均買進價格'].max())
+        # 🔵 篩選功能
+        st.subheader("原始資料篩選區")
 
-        # 🔵 用 session state 控制價格同步
-        if "price_min" not in st.session_state:
-            st.session_state.price_min = min_price
-        if "price_max" not in st.session_state:
-            st.session_state.price_max = max_price
+        # 價格範圍（手動輸入）
+        min_price_raw = float(df_raw['價格'].min())
+        max_price_raw = float(df_raw['價格'].max())
 
-        # 🔵 拉條
-        price_range = st.slider(
-            "拖曳選擇平均買進價格範圍",
-            min_value=min_price,
-            max_value=max_price,
-            value=(st.session_state.price_min, st.session_state.price_max),
-            step=0.5,
-            key="slider_price_range"
-        )
-        
-        # 🔵 文字輸入
         col1, col2 = st.columns(2)
         with col1:
-            st.session_state.price_min = st.number_input(
-                "輸入最小價格",
-                min_value=min_price,
-                max_value=st.session_state.price_max,
-                value=st.session_state.price_min,
+            price_min_raw = st.number_input(
+                "原始資料 - 輸入最小價格",
+                min_value=min_price_raw,
+                max_value=max_price_raw,
+                value=min_price_raw,
                 step=0.5,
-                format="%.2f"
+                format="%.2f",
+                key="price_min_raw"
             )
         with col2:
-            st.session_state.price_max = st.number_input(
-                "輸入最大價格",
-                min_value=st.session_state.price_min,
-                max_value=max_price,
-                value=st.session_state.price_max,
+            price_max_raw = st.number_input(
+                "原始資料 - 輸入最大價格",
+                min_value=min_price_raw,
+                max_value=max_price_raw,
+                value=max_price_raw,
                 step=0.5,
-                format="%.2f"
+                format="%.2f",
+                key="price_max_raw"
             )
 
-        # 🔵 確保滑桿和輸入框同步
-        price_range = (st.session_state.price_min, st.session_state.price_max)
-
-        # 🔵 券商名稱選擇
-        all_brokers = df['券商'].dropna().unique().tolist()
-        selected_brokers = st.multiselect(
-            "選擇券商（可複選，不選代表全部）",
-            options=all_brokers
+        # 券商名稱選擇（可搜尋且加捲軸）
+        all_brokers_raw = df_raw['券商'].dropna().unique().tolist()
+        selected_brokers_raw = st.multiselect(
+            "原始資料 - 選擇券商（可複選）",
+            options=all_brokers_raw,
+            key="brokers_raw"
         )
 
-        # 🔵 套用篩選條件
-        df_filtered = df[
-            (df['平均買進價格'] >= price_range[0]) &
-            (df['平均買進價格'] <= price_range[1])
+        # 🔵 原始資料篩選（用 df_raw）
+        df_raw_filtered = df_raw[
+            (df_raw['價格'] >= price_min_raw) & 
+            (df_raw['價格'] <= price_max_raw)
         ]
-        if selected_brokers:
-            df_filtered = df_filtered[df_filtered['券商'].isin(selected_brokers)]
+        if selected_brokers_raw:
+            df_raw_filtered = df_raw_filtered[df_raw_filtered['券商'].isin(selected_brokers_raw)]
 
-        # 🔵 顯示可以互動排序的完整表格
-        st.subheader("完整資料（可篩選、排序）")
+        # --- 顯示原始資料 ---
+        st.subheader("原始資料")
+        st.dataframe(df_raw_filtered, use_container_width=True)
+
+        # CSV 下載按鈕（原本的）
+        csv_raw_filtered = df_raw_filtered.to_csv(index=False).encode('utf-8-sig')
+        st.download_button(
+            label="下載原始資料 CSV",
+            data=csv_raw_filtered,
+            file_name='原始資料.csv',
+            mime='text/csv'
+        )
+        st.divider()
+
+
+        # --- 彙整資料篩選區 ---
+        st.subheader("彙整資料篩選區")
+
+        min_price_agg = float(df['平均買進價格'].min())
+        max_price_agg = float(df['平均買進價格'].max())
+
+        col1, col2 = st.columns(2)
+        with col1:
+            price_min_agg = st.number_input(
+                "彙整資料 - 輸入最小價格",
+                min_value=min_price_agg,
+                max_value=max_price_agg,
+                value=min_price_agg,
+                step=0.5,
+                format="%.2f",
+                key="price_min_agg"
+            )
+        with col2:
+            price_max_agg = st.number_input(
+                "彙整資料 - 輸入最大價格",
+                min_value=min_price_agg,
+                max_value=max_price_agg,
+                value=max_price_agg,
+                step=0.5,
+                format="%.2f",
+                key="price_max_agg"
+            )
+
+        all_brokers_agg = df['券商'].dropna().unique().tolist()
+        selected_brokers_agg = st.multiselect(
+            "彙整資料 - 選擇券商（可複選）",
+            options=all_brokers_agg,
+            key="brokers_agg"
+        )
+
+        df_filtered = df[
+            (df['平均買進價格'] >= price_min_agg) & 
+            (df['平均買進價格'] <= price_max_agg)
+        ]
+        if selected_brokers_agg:
+            df_filtered = df_filtered[df_filtered['券商'].isin(selected_brokers_agg)]
+
+        st.subheader("彙整資料")
         st.dataframe(df_filtered, use_container_width=True)
+        
+        # CSV 下載按鈕（原本的）
+        csv_filtered = df_filtered.to_csv(index=False).encode('utf-8-sig')
+        st.download_button(
+            label="下載彙整資料 CSV",
+            data=csv_filtered,
+            file_name='彙整資料.csv',
+            mime='text/csv'
+        )
 
         st.divider()
 
-        # --- 以下跟之前一樣，Top20報表＋下載功能 ---
+
+
+        # --- 以下 Top20 報表 + 下載 ---
         st.subheader("📈 買超前20名")
         df_buy = top20_buy(df)
         st.table(df_buy)
 
+        # CSV 下載按鈕（原本的）
         csv_buy = df_buy.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label="下載買超前20名 CSV",
@@ -266,6 +320,7 @@ if uploaded_file is not None:
         )
 
         st.divider()
+
 
         st.subheader("📉 賣超前20名")
         df_sell = top20_sell(df)
