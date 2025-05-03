@@ -118,15 +118,16 @@ class StockTradeAnalyzer:
                 '總賣出金額': round(total_sell_amount, 2),
                 '淨買入': net_shares if net_shares > 0 else 0,
                 '淨賣出': abs(net_shares) if net_shares < 0 else 0,
-                '淨買額': round(net_buy_amount, 2),
-                '淨賣額': round(net_sell_amount, 2),
-                '當沖盈虧': round(profit_loss, 2)
+                '淨買額': int(net_buy_amount),
+                '淨賣額': int(net_sell_amount),
+                '當沖盈虧': int(profit_loss)
             }
         
         # Convert to DataFrame and round values
         result_df = pd.DataFrame.from_dict(results, orient='index')
         result_df = result_df.round(2)
         result_df = result_df.reset_index(drop=True)
+        
         return result_df
 
 
@@ -138,6 +139,9 @@ def top20_buy(df):
     df_buy_20_clean = df_buy_20_clean.reset_index(drop=True)
     df_buy_20_clean.index = df_buy_20_clean.index + 1
     df_buy_20_clean.index.name = '名次'
+    df_buy_20_clean['買入價'] = df_buy_20_clean['買入價'].round(2)
+    df_buy_20_clean['賣出價'] = df_buy_20_clean['賣出價'].round(2)
+
     return df_buy_20_clean
 
 def top20_sell(df):
@@ -147,6 +151,10 @@ def top20_sell(df):
     df_sell_20_clean = df_sell_20_clean.reset_index(drop=True)
     df_sell_20_clean.index = df_sell_20_clean.index + 1
     df_sell_20_clean.index.name = '名次'
+    df_sell_20_clean = df_sell_20_clean.round(2)
+    df_sell_20_clean['買入價'] = df_sell_20_clean['買入價'].round(2)
+    df_sell_20_clean['賣出價'] = df_sell_20_clean['賣出價'].round(2)
+
     return df_sell_20_clean
 
 def top20_intraday(df):
@@ -156,6 +164,9 @@ def top20_intraday(df):
     df_day_20_clean = df_day_20_clean.reset_index(drop=True)
     df_day_20_clean.index = df_day_20_clean.index + 1
     df_day_20_clean.index.name = '名次'
+    df_day_20_clean['買入價'] = df_day_20_clean['買入價'].round(2)
+    df_day_20_clean['賣出價'] = df_day_20_clean['賣出價'].round(2)
+
     return df_day_20_clean
 
 def parse_formatted_number(value):
