@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import io
 import matplotlib.ticker as ticker
 import matplotlib.font_manager as fm
+from matplotlib import rcParams
+from matplotlib.font_manager import FontProperties
 
 class StockTradeAnalyzer:
     def __init__(self):
@@ -198,7 +200,15 @@ def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_
     """生成表格樣式佈局，增大字體並調整佈局以適應 (v23)"""
     print("DEBUG: Entering create_visualization (v23 - larger fonts)...") # Version Update
 
-    plt.rcParams['font.family'] = 'Microsoft JhengHei'
+    # 1. 設定字體
+    font_path = "./msjh.ttc"   
+
+    # 2. 設定 matplotlib 全域字體
+    zh_font = FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = zh_font.get_name()
+
+    # 避免負號亂碼
+    plt.rcParams['axes.unicode_minus'] = False
 
     if buy_top_raw.empty and sell_top_raw.empty:
         print("ERROR: Both buy and sell data are empty, cannot create visualization.")
