@@ -1,7 +1,12 @@
 import io
 import csv
+import numpy as np
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+import io
+import matplotlib.ticker as ticker
+import matplotlib.font_manager as fm
 
 class StockTradeAnalyzer:
     def __init__(self):
@@ -102,18 +107,18 @@ class StockTradeAnalyzer:
             # Store results
             results[broker] = {
                 '券商': broker,  # 加入券商欄位
-                '總買進股數': total_buy_shares,
-                '平均買進價格': avg_buy_price,
-                '總賣出股數': total_sell_shares,
-                '平均賣出價格': avg_sell_price,
-                '當沖數量': day_trade_volume,
+                '買入': total_buy_shares,
+                '買入價': round(avg_buy_price,2),
+                '賣出': total_sell_shares,
+                '賣出價': round(avg_sell_price,2),
+                '當沖量': day_trade_volume,
                 '總買進金額': round(total_buy_amount, 2),
                 '總賣出金額': round(total_sell_amount, 2),
-                '買超股數': net_shares if net_shares > 0 else 0,
-                '賣超股數': abs(net_shares) if net_shares < 0 else 0,
-                '買超金額_萬': round(net_buy_amount, 2),
-                '賣超金額_萬': round(net_sell_amount, 2),
-                '盈虧_每張': round(profit_loss, 2)
+                '淨買入': net_shares if net_shares > 0 else 0,
+                '淨賣出': abs(net_shares) if net_shares < 0 else 0,
+                '淨買額': round(net_buy_amount, 2),
+                '淨賣額': round(net_sell_amount, 2),
+                '當沖盈虧': round(profit_loss, 2)
             }
         
         # Convert to DataFrame and round values
@@ -126,8 +131,8 @@ class StockTradeAnalyzer:
 # 這三個是你自己寫好的 function
 def top20_buy(df):
     # 這裡放你的邏輯
-    df_buy_20 = df.sort_values(by='買超股數', ascending=False).iloc[0:20,:]
-    df_buy_20_clean = df_buy_20[['券商','總買進股數','平均買進價格','總賣出股數','平均賣出價格','買超股數','買超金額_萬']]
+    df_buy_20 = df.sort_values(by='淨買入', ascending=False).iloc[0:20,:]
+    df_buy_20_clean = df_buy_20[['券商','買入','買入價','賣出','賣出價','淨買入','淨買額']]
     df_buy_20_clean = df_buy_20_clean.reset_index(drop=True)
     df_buy_20_clean.index = df_buy_20_clean.index + 1
     df_buy_20_clean.index.name = '名次'
@@ -135,8 +140,8 @@ def top20_buy(df):
 
 def top20_sell(df):
     # 這裡放你的邏輯
-    df_sell_20 = df.sort_values(by='賣超股數', ascending=False).iloc[0:20,:]
-    df_sell_20_clean = df_sell_20[['券商','總買進股數','平均買進價格','總賣出股數','平均賣出價格','賣超股數','賣超金額_萬']]
+    df_sell_20 = df.sort_values(by='淨賣出', ascending=False).iloc[0:20,:]
+    df_sell_20_clean = df_sell_20[['券商','買入','買入價','賣出','賣出價','淨賣出','淨賣額']]
     df_sell_20_clean = df_sell_20_clean.reset_index(drop=True)
     df_sell_20_clean.index = df_sell_20_clean.index + 1
     df_sell_20_clean.index.name = '名次'
@@ -144,12 +149,192 @@ def top20_sell(df):
 
 def top20_intraday(df):
     # 這裡放你的邏輯
-    df_day_20 = df.sort_values(by='當沖數量', ascending=False).iloc[0:20,:]
-    df_day_20_clean = df_day_20[['券商','總買進股數','平均買進價格','總賣出股數','平均賣出價格','當沖數量','盈虧_每張']]
+    df_day_20 = df.sort_values(by='當沖量', ascending=False).iloc[0:20,:]
+    df_day_20_clean = df_day_20[['券商','買入','買入價','賣出','賣出價','當沖量','當沖盈虧']]
     df_day_20_clean = df_day_20_clean.reset_index(drop=True)
     df_day_20_clean.index = df_day_20_clean.index + 1
     df_day_20_clean.index.name = '名次'
     return df_day_20_clean
+
+def parse_formatted_number(value):
+    if pd.isna(value): return 0.0
+    if isinstance(value, (int, float, np.number)): return float(value)
+    if isinstance(value, str):
+        value = value.strip().replace(',', '')
+        if value.startswith('(') and value.endswith(')'):
+            try: return -float(value[1:-1])
+            except ValueError: return 0.0
+        if '張' in value and '(' in value and ')' in value:
+            try: num_part = value.split('張')[0]; return float(num_part) * 1000
+            except ValueError: return 0.0
+        try: return float(value)
+        except ValueError: return 0.0
+    return 0.0
+
+def format_broker_name(name):
+    if not isinstance(name, str): return ""
+    return ''.join(char for char in name if '\u4e00' <= char <= '\u9fff' or '\u3000' <= char <= '\u303f' or '\uff00' <= char <= '\uffef' or char in '()-')
+
+def format_volume_int(value):
+    numeric_value = parse_formatted_number(value)
+    if pd.isna(numeric_value) or numeric_value == 0: return "0"
+    volume_in_k = numeric_value / 1000.0
+    return f"{int(round(volume_in_k))}"
+
+def format_volume_with_price_label(volume_val, price_val):
+    """
+    生成圖表中間列的價格和數量文本（分離）。
+    返回: (price_text, volume_text)
+    如果價格無效，price_text 為空字符串。
+    """
+    volume_text = format_volume_int(volume_val)
+    if pd.isna(price_val) or price_val <= 0:
+        price_text = ""
+    else:
+        price_text = f"({price_val:.1f})"
+    return price_text, volume_text
+
+def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_visualization_final.png"):
+    """生成表格樣式佈局，增大字體並調整佈局以適應 (v23)"""
+    print("DEBUG: Entering create_visualization (v23 - larger fonts)...") # Version Update
+
+    plt.rcParams['font.family'] = 'Microsoft JhengHei'
+
+    if buy_top_raw.empty and sell_top_raw.empty:
+        print("ERROR: Both buy and sell data are empty, cannot create visualization.")
+        return
+
+    n_items = 20
+    num_buy = min(len(buy_top_raw), n_items)
+    num_sell = min(len(sell_top_raw), n_items)
+    max_rows = max(num_buy, num_sell)
+    print(f"DEBUG: Plotting: buys={num_buy}, sells={num_sell}, max_rows={max_rows}")
+
+    # --- Colors and Fonts ---
+    bg_color = '#33373D'; header_color = '#AEAEAE'; broker_color = '#FFFFFF'
+    buy_color_bar = '#A02C2C'; sell_color_bar = '#2E7D32'
+    buy_price_color = '#E57373'; sell_price_color = '#66BB6A'
+    buy_volume_color = '#FF7A7A'; sell_volume_color = '#81C784';
+    summary_color = '#E0E0E0'
+
+    # 字體大小 (v23)
+    header_fontsize = 19
+    broker_fontsize = 18
+    value_fontsize = 19
+    summary_fontsize = 17
+    font_weight = 'bold'
+
+    # --- Create Figure ---
+    # 佈局調整 (v23)
+    row_height_factor = 0.65
+    fig_height = 1.8 + max_rows * row_height_factor + 1.0
+    fig, ax = plt.subplots(figsize=(9, fig_height), facecolor=bg_color)
+    fig.patch.set_facecolor(bg_color); ax.set_facecolor(bg_color)
+    ax.set_xticks([]); ax.set_yticks([])
+    for spine in ax.spines.values(): spine.set_visible(False)
+    ax.set_ylim(max_rows + 1.2, -1.2); ax.set_xlim(-0.05, 1.05)
+
+    # --- Draw Header ---
+    header_y = -0.5
+    ax.text(0.18, header_y, "買超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center')
+    ax.text(0.5, header_y, "買賣超張數(價)", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center')
+    ax.text(0.82, header_y, "賣超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center')
+
+    # --- Prepare Data and Max Value (無變更) ---
+    all_volumes_k = [];
+    if num_buy > 0: all_volumes_k.extend(abs(buy_top_raw['淨買入'].head(num_buy) / 1000))
+    if num_sell > 0: all_volumes_k.extend(abs(sell_top_raw['淨賣出'].head(num_sell) / 1000))
+    if not all_volumes_k:
+        max_abs_volume_k = 1.0
+    else:
+        max_abs_volume_k = max(all_volumes_k) if max(all_volumes_k) > 0 else 1.0
+    print(f"DEBUG: Max absolute volume (K shares): {max_abs_volume_k}")
+
+    # --- Draw Data Rows (v23 - Larger Fonts, Adjusted Layout) ---
+    x_buy_broker = 0.01; x_sell_broker = 0.99
+    x_volume_center = 0.5
+    center_ref = x_volume_center
+    base_offset = 0.015
+
+    # 佈局參數 (v23)
+    fixed_gap_value = 0.08
+    bar_max_relative_width = 0.40
+    bar_height = 0.7
+
+    print(f"DEBUG: Drawing data rows with larger fonts (H:{header_fontsize}, B:{broker_fontsize}, V:{value_fontsize}, S:{summary_fontsize}) and adjusted layout (row_h:{row_height_factor}, bar_h:{bar_height})...")
+    for i in range(max_rows):
+        y = i + 0.5
+        # Buy side
+        if i < num_buy:
+            try:
+                broker = format_broker_name(buy_top_raw['券商'].iloc[i])
+                volume_val = buy_top_raw['淨買入'].iloc[i]
+                price_val = buy_top_raw['買入價'].iloc[i]
+                price_text, volume_text = format_volume_with_price_label(volume_val, price_val)
+
+                volume_k = abs(volume_val / 1000)
+                bar_width = (volume_k / max_abs_volume_k) * bar_max_relative_width if max_abs_volume_k > 0 else 0
+                bar_left = center_ref - bar_width
+
+                ax.barh(y, width=bar_width, left=bar_left, height=bar_height, color=buy_color_bar, alpha=0.8, edgecolor=None)
+                ax.text(x_buy_broker, y, broker, color=broker_color, fontsize=broker_fontsize, fontweight=font_weight, ha='left', va='center')
+
+                x_vol = center_ref - base_offset
+                ax.text(x_vol, y, volume_text, color=buy_volume_color, fontsize=value_fontsize, fontweight=font_weight, ha='right', va='center')
+                if price_text:
+                    x_price = x_vol - fixed_gap_value
+                    ax.text(x_price, y, price_text, color=buy_price_color, fontsize=value_fontsize, fontweight=font_weight, ha='right', va='center')
+
+            except Exception as row_e: print(f"WARN: Error drawing buy row {i+1}: {row_e}")
+
+        # Sell side
+        if i < num_sell:
+            try:
+                broker = format_broker_name(sell_top_raw['券商'].iloc[i])
+                volume_val = sell_top_raw['淨賣出'].iloc[i]
+                price_val = sell_top_raw['賣出價'].iloc[i]
+                price_text, volume_text = format_volume_with_price_label(volume_val, price_val)
+
+                volume_k = abs(volume_val / 1000)
+                bar_width = (volume_k / max_abs_volume_k) * bar_max_relative_width if max_abs_volume_k > 0 else 0
+                bar_left = center_ref
+
+                ax.barh(y, width=bar_width, left=bar_left, height=bar_height, color=sell_color_bar, alpha=0.8, edgecolor=None)
+                ax.text(x_sell_broker, y, broker, color=broker_color, fontsize=broker_fontsize, fontweight=font_weight, ha='right', va='center')
+
+                x_vol = center_ref + base_offset
+                ax.text(x_vol, y, volume_text, color=sell_volume_color, fontsize=value_fontsize, fontweight=font_weight, ha='left', va='center')
+                if price_text:
+                    x_price = x_vol + fixed_gap_value
+                    ax.text(x_price, y, price_text, color=sell_price_color, fontsize=value_fontsize, fontweight=font_weight, ha='left', va='center')
+
+            except Exception as row_e: print(f"WARN: Error drawing sell row {i+1}: {row_e}")
+    print("DEBUG: Data rows drawn.")
+
+    # --- Draw Summary Text ---
+    print("DEBUG: Drawing summary text...")
+    total_buy_k = buy_top_raw['淨買入'].sum() / 1000 if num_buy > 0 else 0
+    total_sell_k = sell_top_raw['淨賣出'].sum() / 1000 if num_sell > 0 else 0
+    summary_text = f'Top{n_items} 總買超: {total_buy_k:,.0f} 張       Top{n_items} 總賣超: {total_sell_k:,.0f} 張'
+    summary_y = max_rows + 0.9
+    ax.text(0.5, summary_y, summary_text, ha='center', va='center', color=summary_color, fontsize=summary_fontsize, fontweight=font_weight)
+    print("DEBUG: Summary text drawn.")
+
+    # --- Finalize and Save ---
+    print("DEBUG: Adjusting layout and saving figure...")
+    plt.tight_layout(pad=0.8)
+    try:
+        plt.savefig(output_file, facecolor=fig.get_facecolor(), edgecolor='none', dpi=300)
+        print(f"SUCCESS: Visualization (v23) saved to: {output_file}")
+        return fig
+    except Exception as e:
+        print(f"ERROR: Failed to save visualization '{output_file}': {e}")
+    finally:
+         print("DEBUG: Closing figure...")
+         plt.close(fig)
+         print("DEBUG: Figure closed.")
+
+
 
 
 
@@ -250,8 +435,8 @@ if uploaded_file is not None:
         # --- 彙整資料篩選區 ---
         st.subheader("彙整資料篩選區")
 
-        min_price_agg = float(df['平均買進價格'].min())
-        max_price_agg = float(df['平均買進價格'].max())
+        min_price_agg = float(df['買入價'].min())
+        max_price_agg = float(df['買入價'].max())
 
         col1, col2 = st.columns(2)
         with col1:
@@ -283,8 +468,8 @@ if uploaded_file is not None:
         )
 
         df_filtered = df[
-            (df['平均買進價格'] >= price_min_agg) & 
-            (df['平均買進價格'] <= price_max_agg)
+            (df['買入價'] >= price_min_agg) & 
+            (df['買入價'] <= price_max_agg)
         ]
         if selected_brokers_agg:
             df_filtered = df_filtered[df_filtered['券商'].isin(selected_brokers_agg)]
@@ -346,4 +531,27 @@ if uploaded_file is not None:
             data=csv_intraday,
             file_name='當沖前20名.csv',
             mime='text/csv'
+        )
+        
+
+        ## 圖片
+
+        st.subheader("🚀 買賣超對照圖(感謝 B大 大力協助 🙏)")
+        st.caption("🎉特別感謝B大🎉 提供此圖表程式碼的原始範例")
+        fig = create_visualization(df_buy, df_sell)
+
+        # 將圖形儲存到 BytesIO
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
+        buf.seek(0)
+
+        # 顯示圖片
+        st.image(buf, caption="📷 買賣超對照圖", use_container_width=True)
+
+        # 下載按鈕
+        st.download_button(
+            label="下載買賣超對照圖 PNG",
+            data=buf,
+            file_name="買賣超對照圖.png",
+            mime="image/png"
         )
