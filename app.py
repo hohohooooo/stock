@@ -200,15 +200,7 @@ def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_
     """生成表格樣式佈局，增大字體並調整佈局以適應 (v23)"""
     print("DEBUG: Entering create_visualization (v23 - larger fonts)...") # Version Update
 
-    # 1. 設定字體
-    font_path = "./msjh.ttc"   
-
-    # 2. 設定 matplotlib 全域字體
-    zh_font = FontProperties(fname=font_path)
-    plt.rcParams['font.family'] = zh_font.get_name()
-
-    # 避免負號亂碼
-    plt.rcParams['axes.unicode_minus'] = False
+    plt.rcParams['font.family'] = 'sans-serif'
 
     if buy_top_raw.empty and sell_top_raw.empty:
         print("ERROR: Both buy and sell data are empty, cannot create visualization.")
@@ -544,24 +536,24 @@ if uploaded_file is not None:
         )
         
 
-        ## 圖片
+        # ## 圖片
 
-        st.subheader("🚀 買賣超對照圖(感謝 B大 大力協助 🙏)")
-        st.caption("🎉特別感謝B大🎉 提供此圖表程式碼的原始範例")
-        fig = create_visualization(df_buy, df_sell)
+        # st.subheader("🚀 買賣超對照圖(感謝 B大 大力協助 🙏)")
+        # st.caption("🎉特別感謝B大🎉 提供此圖表程式碼的原始範例")
+        # fig = create_visualization(df_buy, df_sell)
 
-        # 將圖形儲存到 BytesIO
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
-        buf.seek(0)
+        # # 將圖形儲存到 BytesIO
+        # buf = io.BytesIO()
+        # fig.savefig(buf, format='png', dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
+        # buf.seek(0)
 
-        # 顯示圖片
-        st.image(buf, caption="📷 買賣超對照圖", use_container_width=True)
+        # # 顯示圖片
+        # st.image(buf, caption="📷 買賣超對照圖", use_container_width=True)
 
-        # 下載按鈕
-        st.download_button(
-            label="下載買賣超對照圖 PNG",
-            data=buf,
-            file_name="買賣超對照圖.png",
-            mime="image/png"
-        )
+        # # 下載按鈕
+        # st.download_button(
+        #     label="下載買賣超對照圖 PNG",
+        #     data=buf,
+        #     file_name="買賣超對照圖.png",
+        #     mime="image/png"
+        # )
