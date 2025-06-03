@@ -4,6 +4,7 @@ import numpy as np
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
 import io
 import matplotlib.ticker as ticker
 import matplotlib.font_manager as fm
@@ -210,8 +211,17 @@ def format_volume_with_price_label(volume_val, price_val):
 def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_visualization_final.png"):
     """生成表格樣式佈局，增大字體並調整佈局以適應 (v23)"""
     print("DEBUG: Entering create_visualization (v23 - larger fonts)...") # Version Update
-
-    plt.rcParams['font.family'] = 'sans-serif'
+    # 設定字型路徑
+    # https://github.com/notofonts/noto-cjk/tree/main/Sans/OTF/TraditionalChinese
+    font_path = Path("fonts/NotoSansCJKtc-Bold.otf")
+    if font_path.exists():
+        font_prop = fm.FontProperties(fname=str(font_path))
+        plt.rcParams['font.family'] = font_prop.get_name()
+        print("✅ 成功載入字型：", font_prop.get_name())
+    else:
+        print("❌ 找不到字型檔案，請檢查路徑")
+    # plt.rcParams['font.family'] = 'sans-serif'
+    
 
     if buy_top_raw.empty and sell_top_raw.empty:
         print("ERROR: Both buy and sell data are empty, cannot create visualization.")
@@ -249,9 +259,9 @@ def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_
 
     # --- Draw Header ---
     header_y = -0.5
-    ax.text(0.18, header_y, "買超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center')
-    ax.text(0.5, header_y, "買賣超張數(價)", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center')
-    ax.text(0.82, header_y, "賣超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center')
+    ax.text(0.18, header_y, "買超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center', fontproperties=font_prop)
+    ax.text(0.5, header_y, "買賣超張數(價)", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center', fontproperties=font_prop)
+    ax.text(0.82, header_y, "賣超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center', fontproperties=font_prop)
 
     # --- Prepare Data and Max Value (無變更) ---
     all_volumes_k = [];
@@ -290,13 +300,13 @@ def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_
                 bar_left = center_ref - bar_width
 
                 ax.barh(y, width=bar_width, left=bar_left, height=bar_height, color=buy_color_bar, alpha=0.8, edgecolor=None)
-                ax.text(x_buy_broker, y, broker, color=broker_color, fontsize=broker_fontsize, fontweight=font_weight, ha='left', va='center')
+                ax.text(x_buy_broker, y, broker, color=broker_color, fontsize=broker_fontsize, fontweight=font_weight, ha='left', va='center',fontproperties=font_prop)
 
                 x_vol = center_ref - base_offset
-                ax.text(x_vol, y, volume_text, color=buy_volume_color, fontsize=value_fontsize, fontweight=font_weight, ha='right', va='center')
+                ax.text(x_vol, y, volume_text, color=buy_volume_color, fontsize=value_fontsize, fontweight=font_weight, ha='right', va='center',fontproperties=font_prop)
                 if price_text:
                     x_price = x_vol - fixed_gap_value
-                    ax.text(x_price, y, price_text, color=buy_price_color, fontsize=value_fontsize, fontweight=font_weight, ha='right', va='center')
+                    ax.text(x_price, y, price_text, color=buy_price_color, fontsize=value_fontsize, fontweight=font_weight, ha='right', va='center', fontproperties=font_prop)
 
             except Exception as row_e: print(f"WARN: Error drawing buy row {i+1}: {row_e}")
 
@@ -313,13 +323,13 @@ def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_
                 bar_left = center_ref
 
                 ax.barh(y, width=bar_width, left=bar_left, height=bar_height, color=sell_color_bar, alpha=0.8, edgecolor=None)
-                ax.text(x_sell_broker, y, broker, color=broker_color, fontsize=broker_fontsize, fontweight=font_weight, ha='right', va='center')
+                ax.text(x_sell_broker, y, broker, color=broker_color, fontsize=broker_fontsize, fontweight=font_weight, ha='right', va='center',fontproperties=font_prop)
 
                 x_vol = center_ref + base_offset
-                ax.text(x_vol, y, volume_text, color=sell_volume_color, fontsize=value_fontsize, fontweight=font_weight, ha='left', va='center')
+                ax.text(x_vol, y, volume_text, color=sell_volume_color, fontsize=value_fontsize, fontweight=font_weight, ha='left', va='center',fontproperties=font_prop)
                 if price_text:
                     x_price = x_vol + fixed_gap_value
-                    ax.text(x_price, y, price_text, color=sell_price_color, fontsize=value_fontsize, fontweight=font_weight, ha='left', va='center')
+                    ax.text(x_price, y, price_text, color=sell_price_color, fontsize=value_fontsize, fontweight=font_weight, ha='left', va='center',fontproperties=font_prop)
 
             except Exception as row_e: print(f"WARN: Error drawing sell row {i+1}: {row_e}")
     print("DEBUG: Data rows drawn.")
@@ -330,7 +340,7 @@ def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_
     total_sell_k = sell_top_raw['淨賣出'].sum() / 1000 if num_sell > 0 else 0
     summary_text = f'Top{n_items} 總買超: {total_buy_k:,.0f} 張       Top{n_items} 總賣超: {total_sell_k:,.0f} 張'
     summary_y = max_rows + 0.9
-    ax.text(0.5, summary_y, summary_text, ha='center', va='center', color=summary_color, fontsize=summary_fontsize, fontweight=font_weight)
+    ax.text(0.5, summary_y, summary_text, ha='center', va='center', color=summary_color, fontsize=summary_fontsize, fontweight=font_weight,fontproperties=font_prop)
     print("DEBUG: Summary text drawn.")
 
     # --- Finalize and Save ---
@@ -373,7 +383,7 @@ st.markdown("""
 
 # --- 頁面標題 ---
 st.title("買賣日報表彙總分析")
-
+st.caption("每日籌碼可至 https://bsr.twse.com.tw/bshtm/ 下載")
 # --- 上傳CSV ---
 uploaded_file = st.file_uploader("上傳CSV檔案", type=["csv"])
 
@@ -547,24 +557,24 @@ if uploaded_file is not None:
         )
         
 
-        # ## 圖片
+        ## 圖片
 
-        # st.subheader("🚀 買賣超對照圖(感謝 B大 大力協助 🙏)")
-        # st.caption("🎉特別感謝B大🎉 提供此圖表程式碼的原始範例")
-        # fig = create_visualization(df_buy, df_sell)
+        st.subheader("🚀 買賣超對照圖(感謝 B大 大力協助 🙏)")
+        st.caption("🎉特別感謝B大🎉 提供此圖表程式碼")
+        fig = create_visualization(df_buy, df_sell)
 
-        # # 將圖形儲存到 BytesIO
-        # buf = io.BytesIO()
-        # fig.savefig(buf, format='png', dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
-        # buf.seek(0)
+        # 將圖形儲存到 BytesIO
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
+        buf.seek(0)
 
-        # # 顯示圖片
-        # st.image(buf, caption="📷 買賣超對照圖", use_container_width=True)
+        # 顯示圖片
+        st.image(buf, caption="📷 買賣超對照圖", use_container_width=True)
 
-        # # 下載按鈕
-        # st.download_button(
-        #     label="下載買賣超對照圖 PNG",
-        #     data=buf,
-        #     file_name="買賣超對照圖.png",
-        #     mime="image/png"
-        # )
+        # 下載按鈕
+        st.download_button(
+            label="下載買賣超對照圖 PNG",
+            data=buf,
+            file_name="買賣超對照圖.png",
+            mime="image/png"
+        )
