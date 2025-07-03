@@ -6,10 +6,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import io
+from datetime import datetime
 import matplotlib.ticker as ticker
 import matplotlib.font_manager as fm
 from matplotlib import rcParams
 from matplotlib.font_manager import FontProperties
+
+today = datetime.now().date()
+date = today.strftime('%Y-%m-%d')
 
 class StockTradeAnalyzer:
     def __init__(self):
@@ -207,6 +211,104 @@ def format_volume_with_price_label(volume_val, price_val):
     else:
         price_text = f"({price_val:.1f})"
     return price_text, volume_text
+
+def df_to_png_bytes(df, title):
+    today = datetime.now().date()
+    date = today.strftime('%Y-%m-%d')
+
+    df.insert(0, '名次', range(1, len(df) + 1))
+    # 設定繁體中文字體
+    font_path = Path("fonts/NotoSansCJKtc-Regular.otf")
+    prop = fm.FontProperties(fname=font_path)
+
+    def adjust_column_widths(table, df, total_width=1.0):
+        col_widths = []
+        for col in df.columns:
+            max_len = max(
+                [len(str(col))] + [len(str(v)) for v in df[col].values]
+            )
+            col_widths.append(max_len)
+
+        col_widths = np.array(col_widths, dtype=float)
+        col_widths /= col_widths.sum()  # 正規化
+        col_widths *= total_width       # 總寬度 = 1.0
+
+        for col_idx, width in enumerate(col_widths):
+            for row_idx in range(len(df) + 1):  # +1 包含表頭
+                cell = table[(row_idx, col_idx)]
+                cell.set_width(width)
+
+    # 計算合理高度
+    fig, ax = plt.subplots(figsize=(len(df.columns) * 1.8, len(df) * 0.48))
+    ax.axis('off')
+
+    # 左上標題
+    ax.text(
+        0.01, 0.98, title,
+        fontsize=16, fontproperties=prop, color='#333333',
+        ha='left', va='top', transform=ax.transAxes
+    )
+
+    # 右上日期
+    ax.text(
+        0.99, 0.05, date,
+        fontsize=12, fontproperties=prop, color='#666666',
+        ha='right', va='top', transform=ax.transAxes
+    )
+
+    # 建立 table
+    table = ax.table(
+        cellText=df.values,
+        colLabels=df.columns,
+        loc='center',
+        cellLoc='center'
+    )
+
+    # 配色
+    header_text_color = '#FFFFFF'
+    header_bg_color   = '#4A6FA5'
+    text_color        = '#333333'
+    even_row_color    = '#F7F7F7'
+    odd_row_color     = '#FFFFFF'
+    edge_color        = '#DDDDDD'
+
+    # 格式化 cell
+    for (row, col), cell in table.get_celld().items():
+        cell.get_text().set_fontproperties(prop)
+        cell.get_text().set_fontsize(10)
+        cell.get_text().set_weight('normal')
+
+        if row == 0:
+            # 表頭
+            cell.set_facecolor(header_bg_color)
+            cell.get_text().set_color(header_text_color)
+        else:
+            cell.get_text().set_color(text_color)
+            if row % 2 == 0:
+                cell.set_facecolor(even_row_color)
+            else:
+                cell.set_facecolor(odd_row_color)
+
+        cell.set_edgecolor(edge_color)
+
+    table.scale(1, 1.8)
+
+    # 欄寬自適應
+    adjust_column_widths(table, df)
+
+    # 輸出
+    buf = io.BytesIO()
+    plt.savefig(
+        buf,
+        format="png",
+        bbox_inches='tight',
+        dpi=150,
+        facecolor='white',
+        pad_inches=0.02
+    )
+    buf.seek(0)
+    plt.close(fig)
+    return buf
 
 def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_visualization_final.png"):
     """生成表格樣式佈局，增大字體並調整佈局以適應 (v23)"""
@@ -449,7 +551,7 @@ if uploaded_file is not None:
         st.download_button(
             label="下載原始資料 CSV",
             data=csv_raw_filtered,
-            file_name='原始資料.csv',
+            file_name=f'原始資料_{date}.csv',
             mime='text/csv'
         )
         st.divider()
@@ -505,7 +607,7 @@ if uploaded_file is not None:
         st.download_button(
             label="下載彙整資料 CSV",
             data=csv_filtered,
-            file_name='彙整資料.csv',
+            file_name=f'彙整資料_{date}.csv',
             mime='text/csv'
         )
 
@@ -513,48 +615,84 @@ if uploaded_file is not None:
 
 
 
-        # --- 以下 Top20 報表 + 下載 ---
+        # --- Top20 報表 + 下載 ---
+
+        ## 📈 買超前20名
         st.subheader("📈 買超前20名")
-        df_buy = top20_buy(df)
+        df_buy = top20_buy(df)  # 這裡是你原本的邏輯
         st.table(df_buy)
 
-        # CSV 下載按鈕（原本的）
+        # CSV 下載
         csv_buy = df_buy.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label="下載買超前20名 CSV",
             data=csv_buy,
-            file_name='買超前20名.csv',
+            file_name=f'買超前20名_{date}.csv',
             mime='text/csv'
+        )
+
+        # PNG 下載
+        png_buf_buy = df_to_png_bytes(df_buy, "買超前20名")
+        st.download_button(
+            label="下載買超前20名 PNG",
+            data=png_buf_buy,
+            file_name=f'買超前20名_{date}.png',
+            mime='image/png'
         )
 
         st.divider()
 
 
+        ## 📉 賣超前20名
         st.subheader("📉 賣超前20名")
-        df_sell = top20_sell(df)
+        df_sell = top20_sell(df)  # 這裡是你原本的邏輯
         st.table(df_sell)
 
+        # CSV 下載
         csv_sell = df_sell.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label="下載賣超前20名 CSV",
             data=csv_sell,
-            file_name='賣超前20名.csv',
+            file_name=f'賣超前20名_{date}.csv',
             mime='text/csv'
+        )
+
+        # PNG 下載
+        png_buf_sell = df_to_png_bytes(df_sell, "賣超前20名")
+        st.download_button(
+            label="下載賣超前20名 PNG",
+            data=png_buf_sell,
+            file_name=f'賣超前20名_{date}.png',
+            mime='image/png'
         )
 
         st.divider()
 
+
+        ## ⚡ 當沖前20名
         st.subheader("⚡ 當沖前20名")
-        df_intraday = top20_intraday(df)
+        df_intraday = top20_intraday(df)  # 這裡是你原本的邏輯
         st.table(df_intraday)
 
+        # CSV 下載
         csv_intraday = df_intraday.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label="下載當沖前20名 CSV",
             data=csv_intraday,
-            file_name='當沖前20名.csv',
+            file_name=f'當沖前20名_{date}.csv',
             mime='text/csv'
         )
+
+        # PNG 下載
+        png_buf_intraday = df_to_png_bytes(df_intraday, "當沖前20名")
+        st.download_button(
+            label="下載當沖前20名 PNG",
+            data=png_buf_intraday,
+            file_name=f'當沖前20名_{date}.png',
+            mime='image/png'
+        )
+
+        st.divider()
         
 
         ## 圖片
@@ -575,6 +713,6 @@ if uploaded_file is not None:
         st.download_button(
             label="下載買賣超對照圖 PNG",
             data=buf,
-            file_name="買賣超對照圖.png",
+            file_name=f"買賣超對照圖_{date}.png",
             mime="image/png"
         )
