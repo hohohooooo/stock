@@ -352,15 +352,16 @@ def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_
     # --- Create Figure ---
     # 佈局調整 (v23)
     row_height_factor = 0.65
-    fig_height = 1.8 + max_rows * row_height_factor + 1.0
+    fig_height = 1.8 + max_rows * row_height_factor + 0.8
     fig, ax = plt.subplots(figsize=(9, fig_height), facecolor=bg_color)
     fig.patch.set_facecolor(bg_color); ax.set_facecolor(bg_color)
     ax.set_xticks([]); ax.set_yticks([])
     for spine in ax.spines.values(): spine.set_visible(False)
-    ax.set_ylim(max_rows + 1.2, -1.2); ax.set_xlim(-0.05, 1.05)
+    ax.set_ylim(max_rows + 1.2, -1.5); ax.set_xlim(-0.05, 1.05)
 
     # --- Draw Header ---
     header_y = -0.5
+    ax.text(0.5, -1.2, date, color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center', fontproperties=font_prop)
     ax.text(0.18, header_y, "買超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center', fontproperties=font_prop)
     ax.text(0.5, header_y, "買賣超張數(價)", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center', fontproperties=font_prop)
     ax.text(0.82, header_y, "賣超分點", color=header_color, fontsize=header_fontsize, fontweight=font_weight, ha='center', va='center', fontproperties=font_prop)
