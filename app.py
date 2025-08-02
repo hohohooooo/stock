@@ -12,8 +12,8 @@ import matplotlib.font_manager as fm
 from matplotlib import rcParams
 from matplotlib.font_manager import FontProperties
 
-today = datetime.now().date()
-date = today.strftime('%Y-%m-%d')
+# today = datetime.now().date()
+# date = today.strftime('%Y-%m-%d')
 
 class StockTradeAnalyzer:
     def __init__(self):
@@ -212,9 +212,7 @@ def format_volume_with_price_label(volume_val, price_val):
         price_text = f"({price_val:.1f})"
     return price_text, volume_text
 
-def df_to_png_bytes(df, title):
-    today = datetime.now().date()
-    date = today.strftime('%Y-%m-%d')
+def df_to_png_bytes(df, title,date):
 
     df.insert(0, '名次', range(1, len(df) + 1))
     # 設定繁體中文字體
@@ -310,7 +308,7 @@ def df_to_png_bytes(df, title):
     plt.close(fig)
     return buf
 
-def create_visualization(buy_top_raw, sell_top_raw, output_file="stock_analysis_visualization_final.png"):
+def create_visualization(buy_top_raw, sell_top_raw, date, output_file="stock_analysis_visualization_final.png"):
     """生成表格樣式佈局，增大字體並調整佈局以適應 (v23)"""
     print("DEBUG: Entering create_visualization (v23 - larger fonts)...") # Version Update
     # 設定字型路徑
@@ -487,9 +485,19 @@ st.markdown("""
 # --- 頁面標題 ---
 st.title("買賣日報表彙總分析")
 st.caption("每日籌碼可至 https://bsr.twse.com.tw/bshtm/ 下載")
+
+# 1. 🗓️ 顯示日期選擇器（預設是今天）
+selected_date = st.date_input(
+    "選擇報表日期",
+    value=datetime.today(), 
+    key="report_date"  
+)
+
+# 2. 轉成你想要的字串格式
+date = selected_date.strftime("%Y-%m-%d")
+
 # --- 上傳CSV ---
 uploaded_file = st.file_uploader("上傳CSV檔案", type=["csv"])
-
 if uploaded_file is not None:
     df2 = test.csv2df(uploaded_file)
     df_raw = test.df2clean(df2)
@@ -633,7 +641,7 @@ if uploaded_file is not None:
         )
 
         # PNG 下載
-        png_buf_buy = df_to_png_bytes(df_buy, "買超前20名")
+        png_buf_buy = df_to_png_bytes(df_buy, "買超前20名", date)
         st.download_button(
             label="下載買超前20名 PNG",
             data=png_buf_buy,
@@ -659,7 +667,7 @@ if uploaded_file is not None:
         )
 
         # PNG 下載
-        png_buf_sell = df_to_png_bytes(df_sell, "賣超前20名")
+        png_buf_sell = df_to_png_bytes(df_sell, "賣超前20名", date)
         st.download_button(
             label="下載賣超前20名 PNG",
             data=png_buf_sell,
@@ -685,7 +693,7 @@ if uploaded_file is not None:
         )
 
         # PNG 下載
-        png_buf_intraday = df_to_png_bytes(df_intraday, "當沖前20名")
+        png_buf_intraday = df_to_png_bytes(df_intraday, "當沖前20名", date)
         st.download_button(
             label="下載當沖前20名 PNG",
             data=png_buf_intraday,
@@ -700,7 +708,7 @@ if uploaded_file is not None:
 
         st.subheader("🚀 買賣超對照圖(感謝 B大 大力協助 🙏)")
         st.caption("🎉特別感謝B大🎉 提供此圖表程式碼")
-        fig = create_visualization(df_buy, df_sell)
+        fig = create_visualization(df_buy, df_sell, date)
 
         # 將圖形儲存到 BytesIO
         buf = io.BytesIO()
