@@ -486,15 +486,27 @@ st.markdown("""
 st.title("買賣日報表彙總分析")
 st.caption("每日籌碼可至 https://bsr.twse.com.tw/bshtm/ 下載")
 
-# 1. 🗓️ 顯示日期選擇器（預設是今天）
-selected_date = st.date_input(
-    "選擇報表日期",
-    value=datetime.today(), 
-    key="report_date"  
-)
+today = datetime.today()
 
-# 2. 轉成你想要的字串格式
-date = selected_date.strftime("%Y-%m-%d")
+# 初始化 report_date（第一次進入）
+if "report_date" not in st.session_state:
+    st.session_state.report_date = today
+    st.session_state.user_selected = False
+
+# 使用者已經選過了，就記得，不再自動更新
+selected_date = st.date_input("選擇報表日期", key="report_date")
+
+# 若選擇跟 today 不同，就代表他選過了
+if not st.session_state.user_selected and selected_date != today:
+    st.session_state.user_selected = True
+
+# ✅ 若沒選過，且日期過了一天，就自動更新為今天
+if not st.session_state.user_selected and st.session_state.report_date != today:
+    st.session_state.report_date = today
+
+# 日期字串轉換
+date = st.session_state.report_date.strftime("%Y-%m-%d")
+st.caption(f"📅 目前報表日期為：{date}")
 
 # --- 上傳CSV ---
 uploaded_file = st.file_uploader("上傳CSV檔案", type=["csv"])
