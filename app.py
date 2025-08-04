@@ -6,7 +6,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import io
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import matplotlib.ticker as ticker
 import matplotlib.font_manager as fm
 from matplotlib import rcParams
@@ -481,7 +482,8 @@ st.markdown("""
 st.title("買賣日報表彙總分析")
 st.caption("每日籌碼可至 https://bsr.twse.com.tw/bshtm/ 下載")
 
-selected_date = st.date_input("選擇報表日期", value=date.today())
+taiwan_today = datetime.now(ZoneInfo("Asia/Taipei")).date()
+selected_date = st.date_input("選擇報表日期", value=taiwan_today)
 date_str = selected_date.strftime("%Y-%m-%d")
 st.caption(f"📅 目前報表日期為：{date_str}")
 
