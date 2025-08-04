@@ -6,14 +6,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import io
-from datetime import datetime
+from datetime import date
 import matplotlib.ticker as ticker
 import matplotlib.font_manager as fm
 from matplotlib import rcParams
 from matplotlib.font_manager import FontProperties
-
-# today = datetime.now().date()
-# date = today.strftime('%Y-%m-%d')
 
 class StockTradeAnalyzer:
     def __init__(self):
@@ -108,8 +105,6 @@ class StockTradeAnalyzer:
             else:  # Net sell
                 net_buy_amount = 0
                 net_sell_amount = (abs(net_shares) * avg_sell_price)/10000 if avg_sell_price is not None else 0
-            # today = datetime.now().date()
-            # date = today.strftime('%Y-%m-%d')
             
             # Store results
             results[broker] = {
@@ -486,27 +481,9 @@ st.markdown("""
 st.title("買賣日報表彙總分析")
 st.caption("每日籌碼可至 https://bsr.twse.com.tw/bshtm/ 下載")
 
-today = datetime.today()
-
-# 初始化 report_date（第一次進入）
-if "report_date" not in st.session_state:
-    st.session_state.report_date = today
-    st.session_state.user_selected = False
-
-# 使用者已經選過了，就記得，不再自動更新
-selected_date = st.date_input("選擇報表日期", key="report_date")
-
-# 若選擇跟 today 不同，就代表他選過了
-if not st.session_state.user_selected and selected_date != today:
-    st.session_state.user_selected = True
-
-# ✅ 若沒選過，且日期過了一天，就自動更新為今天
-if not st.session_state.user_selected and st.session_state.report_date != today:
-    st.session_state.report_date = today
-
-# 日期字串轉換
-date = st.session_state.report_date.strftime("%Y-%m-%d")
-st.caption(f"📅 目前報表日期為：{date}")
+selected_date = st.date_input("選擇報表日期", value=date.today())
+date_str = selected_date.strftime("%Y-%m-%d")
+st.caption(f"📅 目前報表日期為：{date_str}")
 
 # --- 上傳CSV ---
 uploaded_file = st.file_uploader("上傳CSV檔案", type=["csv"])
@@ -572,7 +549,7 @@ if uploaded_file is not None:
         st.download_button(
             label="下載原始資料 CSV",
             data=csv_raw_filtered,
-            file_name=f'原始資料_{date}.csv',
+            file_name=f'原始資料_{date_str}.csv',
             mime='text/csv'
         )
         st.divider()
@@ -628,7 +605,7 @@ if uploaded_file is not None:
         st.download_button(
             label="下載彙整資料 CSV",
             data=csv_filtered,
-            file_name=f'彙整資料_{date}.csv',
+            file_name=f'彙整資料_{date_str}.csv',
             mime='text/csv'
         )
 
@@ -648,16 +625,16 @@ if uploaded_file is not None:
         st.download_button(
             label="下載買超前20名 CSV",
             data=csv_buy,
-            file_name=f'買超前20名_{date}.csv',
+            file_name=f'買超前20名_{date_str}.csv',
             mime='text/csv'
         )
 
         # PNG 下載
-        png_buf_buy = df_to_png_bytes(df_buy, "買超前20名", date)
+        png_buf_buy = df_to_png_bytes(df_buy, "買超前20名", date_str)
         st.download_button(
             label="下載買超前20名 PNG",
             data=png_buf_buy,
-            file_name=f'買超前20名_{date}.png',
+            file_name=f'買超前20名_{date_str}.png',
             mime='image/png'
         )
 
@@ -674,16 +651,16 @@ if uploaded_file is not None:
         st.download_button(
             label="下載賣超前20名 CSV",
             data=csv_sell,
-            file_name=f'賣超前20名_{date}.csv',
+            file_name=f'賣超前20名_{date_str}.csv',
             mime='text/csv'
         )
 
         # PNG 下載
-        png_buf_sell = df_to_png_bytes(df_sell, "賣超前20名", date)
+        png_buf_sell = df_to_png_bytes(df_sell, "賣超前20名", date_str)
         st.download_button(
             label="下載賣超前20名 PNG",
             data=png_buf_sell,
-            file_name=f'賣超前20名_{date}.png',
+            file_name=f'賣超前20名_{date_str}.png',
             mime='image/png'
         )
 
@@ -700,16 +677,16 @@ if uploaded_file is not None:
         st.download_button(
             label="下載當沖前20名 CSV",
             data=csv_intraday,
-            file_name=f'當沖前20名_{date}.csv',
+            file_name=f'當沖前20名_{date_str}.csv',
             mime='text/csv'
         )
 
         # PNG 下載
-        png_buf_intraday = df_to_png_bytes(df_intraday, "當沖前20名", date)
+        png_buf_intraday = df_to_png_bytes(df_intraday, "當沖前20名", date_str)
         st.download_button(
             label="下載當沖前20名 PNG",
             data=png_buf_intraday,
-            file_name=f'當沖前20名_{date}.png',
+            file_name=f'當沖前20名_{date_str}.png',
             mime='image/png'
         )
 
@@ -720,7 +697,7 @@ if uploaded_file is not None:
 
         st.subheader("🚀 買賣超對照圖(感謝 B大 大力協助 🙏)")
         st.caption("🎉特別感謝B大🎉 提供此圖表程式碼")
-        fig = create_visualization(df_buy, df_sell, date)
+        fig = create_visualization(df_buy, df_sell, date_str)
 
         # 將圖形儲存到 BytesIO
         buf = io.BytesIO()
@@ -734,6 +711,6 @@ if uploaded_file is not None:
         st.download_button(
             label="下載買賣超對照圖 PNG",
             data=buf,
-            file_name=f"買賣超對照圖_{date}.png",
+            file_name=f"買賣超對照圖_{date_str}.png",
             mime="image/png"
         )
